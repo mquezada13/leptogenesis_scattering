@@ -57,7 +57,8 @@ class EtaB_1DME_sct(ulysses.ULSBase):
 
         # Thermal widths (decoherence rates for off-diagonal elements)
         widtht = 485e-10 * self.MP / self.M1
-        widthm = 1.7e-10 * self.MP / self.M1
+        widthm = (1.7e-10 * self.MP / self.M1
+                  if getattr(self, "include_muon_decoherence", True) else 0.0)
 
         # --- Boltzmann equations ---
 
