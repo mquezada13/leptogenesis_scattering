@@ -1,0 +1,122 @@
+\section{Implementation of scattering in the $I_2$ calculation}
+\label{sec:i2-scattering}
+
+The purpose of this calculation is to reproduce Fig.~2 of
+Ref.~\cite{Granelli:2021}, and then extend the same calculation by including the
+$\Delta L=1$ scattering prescription used in our code.  The original paper
+defines $I_2$ in its Eq.~(61),
+\begin{equation}
+ I_2(\kappa_1;z)
+ = \int_{z_0}^{z} dz'
+   \exp\!\left[-\int_{z'}^{z}d\widetilde z\,W_1(\widetilde z)\right]
+   W_1(z') I_1(\kappa_1;z'),
+ \label{eq:i2-definition}
+\end{equation}
+where $I_1$ is defined in Eq.~(59) of that reference.  The standard rates
+$D_1$, $W_1$, and the equilibrium abundance $N_{N_1}^{\rm eq}$ are evaluated
+with the corresponding ULYSSES functions.
+
+\subsection{Original calculation without scattering}
+
+Instead of evaluating the nested integrals directly, we introduce auxiliary
+variables and solve the following equivalent system of first-order equations:
+\begin{align}
+ \frac{dN_{N_1}}{dz}
+   &= -D_1\left(N_{N_1}-N_{N_1}^{\rm eq}\right),
+ \label{eq:n1-no-scattering}\\
+ \frac{dC}{dz}
+   &= D_1\left(N_{N_1}-N_{N_1}^{\rm eq}\right)
+      -\frac{W_1}{2}C,
+ \label{eq:c-no-scattering}\\
+ \frac{dI_1}{dz} &= C,
+ \label{eq:i1-ode}\\
+ \frac{dI_2}{dz} &= W_1\left(I_1-I_2\right).
+ \label{eq:i2-ode}
+\end{align}
+Here $C$ is an auxiliary variable representing the inner, washout-damped
+integral in Eq.~(59).  Equation~\eqref{eq:i2-ode} is the differential form of
+Eq.~\eqref{eq:i2-definition}.  All auxiliary variables start from zero.  The
+initial condition for the heavy-neutrino abundance is
+\begin{equation}
+ N_{N_1}(z_0)=
+ \begin{cases}
+  0, & \text{VIA},\\
+  N_{N_1}^{\rm eq}(z_0), & \text{TIA}.
+ \end{cases}
+\end{equation}
+
+\subsection{Scattering prescription}
+
+We include the $s$- and $t$-channel scattering rates, denoted by $S_s$ and
+$S_t$, following the prescription used in the repository.  Scattering enters
+the calculation in two places.
+
+First, it changes the equilibration of the heavy-neutrino abundance:
+\begin{equation}
+ \frac{dN_{N_1}}{dz}
+ =-\left(D_1+S_s+S_t\right)
+   \left(N_{N_1}-N_{N_1}^{\rm eq}\right).
+ \label{eq:n1-with-scattering}
+\end{equation}
+
+Second, the inverse-decay washout is replaced by the scattering-corrected
+washout
+\begin{equation}
+ W_{\rm sct}
+ =W_1\left[
+ 1+\frac{1}{D_1}
+ \left(
+  2\frac{N_{N_1}}{N_{N_1}^{\rm eq}}S_s+4S_t
+ \right)
+ \right].
+ \label{eq:scattering-washout}
+\end{equation}
+
+The decay rate $D_1$, rather than $D_1+S_s+S_t$, is retained in the source
+term.  Thus, scattering changes the production of $N_1$ and the washout, but
+does not act as an additional CP-violating source.  The system solved with
+scattering is therefore
+\begin{align}
+ \frac{dN_{N_1}}{dz}
+   &= -\left(D_1+S_s+S_t\right)
+      \left(N_{N_1}-N_{N_1}^{\rm eq}\right),\\
+ \frac{dC}{dz}
+   &= D_1\left(N_{N_1}-N_{N_1}^{\rm eq}\right)
+      -\frac{W_{\rm sct}}{2}C,\\
+ \frac{dI_1}{dz} &= C,\\
+ \frac{dI_2}{dz} &= W_{\rm sct}\left(I_1-I_2\right).
+ \label{eq:i2-system-scattering}
+\end{align}
+Consequently, the scattering extension amounts to
+\begin{equation}
+ D_1\rightarrow D_1+S_s+S_t
+ \quad\text{only in the $N_1$ equation},
+ \qquad
+ W_1\rightarrow W_{\rm sct}
+ \quad\text{in all washout factors}.
+\end{equation}
+The $D_1(N_{N_1}-N_{N_1}^{\rm eq})$ source is unchanged.
+
+\subsection{Numerical implementation}
+
+The calculation is implemented in \texttt{src/benchmark\_analysis.py} in the
+functions \texttt{scan\_i2} and \texttt{\_i2\_at\_kappa}.  For every value of
+$\kappa_1$, the four coupled equations are integrated with
+\texttt{scipy.integrate.solve\_ivp} using the LSODA method from
+$z_0=10^{-3}$ to $z_f=10^3$.  The ULYSSES methods \texttt{D1}, \texttt{W1},
+and \texttt{N1Eq} supply the standard rates and equilibrium abundance.  The
+functions \texttt{scat\_Ss}, \texttt{scat\_St}, and
+\texttt{washout\_sct}, defined in \texttt{src/scattering.py}, supply the
+scattering rates and Eq.~\eqref{eq:scattering-washout}.
+
+The rates are linear in $\kappa_1$.  They are evaluated once at
+$\kappa_1=1$ on a logarithmic $z$ grid and rescaled for each point of the
+$\kappa_1$ scan.  The same numerical setup and initial conditions are used in
+the calculations with and without scattering, so the comparison isolates the
+effect of the scattering prescription.
+
+For clarity, this is not a built-in ULYSSES evaluation of $I_2$.  ULYSSES is
+used to obtain the standard ingredients $D_1$, $W_1$, and
+$N_{N_1}^{\rm eq}$; the coupled system defining $I_1$ and $I_2$, together with
+its scattering extension, is implemented separately in this repository.
+
